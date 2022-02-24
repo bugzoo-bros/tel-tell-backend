@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "teltell-742e4",
+    "dev": "teltell-dev-fujisawa",
+    "stg": "teltell-stg-c34a1",
+    "prod": "teltell-742e4"
+  }
+}
