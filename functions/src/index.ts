@@ -42,6 +42,12 @@ export const match = functions
               .where("callMode", "in", ["all", "wantWomen"]);
         }
       }
+      // 70秒以内
+      const createdAtDate = callerTicket.createdAt.toDate();
+      createdAtDate.setSeconds(createdAtDate.getSeconds() - 70);
+      const createdAtTimestamp =
+      admin.firestore.Timestamp.fromDate(createdAtDate);
+      query = query.where("createdAt", ">=", createdAtTimestamp);
       // 自分を除外
       query = query.where("createdAt", "!=", callerTicket.createdAt);
       // 最新順に並び替え
@@ -52,12 +58,20 @@ export const match = functions
       // データ取得
       const result = await query.get();
 
+      // 検索結果なし
+      if (result.empty) return;
+
       // キャスト & 配列から取り出す
       const calleeTicket = result.docs.map((snapshot) => {
         const ticket = snapshot.data() as Ticket;
         functions.logger.info(ticket);
         return snapshot.data() as Ticket;
       })[0];
+
+      // チケットを削除
+      const ticketRef = db.collection("ticket");
+      await ticketRef.doc(callerTicket.ticketId).delete();
+      await ticketRef.doc(calleeTicket.ticketId).delete();
 
       // callUserStateRef
       const callerUserStateRef = db
