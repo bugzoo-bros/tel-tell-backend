@@ -1,3 +1,22 @@
+export type User = {
+  uid: string,
+  faculty: string
+  name: string,
+  grade: string,
+  gender: string,
+  createdAt: FirebaseFirestore.Timestamp,
+  updatedAt: FirebaseFirestore.Timestamp
+};
+
+export type UserPublic = {
+  faculty: string
+  name: string,
+  grade: string,
+  gender: string,
+  createdAt: FirebaseFirestore.Timestamp,
+  updatedAt: FirebaseFirestore.Timestamp
+};
+
 export type Ticket = {
   ticketId: string;
   uid: string;
