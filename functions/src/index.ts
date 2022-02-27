@@ -1,16 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {CallRoom, CallUserState, Ticket} from "./type";
 
-type Ticket = {
-  ticketId: string;
-  uid: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  callMode: CallMode;
-  gender: Gender;
-};
-
-type CallMode = "all" | "wantMen" | "wantWomen";
-type Gender = "男" | "女";
 
 export const match = functions
     .region("asia-northeast2")
@@ -19,20 +10,19 @@ export const match = functions
       const app = admin.initializeApp(undefined, context.eventId);
       const db = app.firestore();
 
-      const ticket = snapshot.data() as Ticket;
-      functions.logger.info(ticket);
+      const callerTicket = snapshot.data() as Ticket;
 
       // マッチ相手検索（検索フィールドが増えたらアルゴリズムの改善必要？）
       const collection = db.collection("ticket");
       let query: FirebaseFirestore.Query;
-      if (ticket.callMode === "all") {
-        if (ticket.gender === "男") {
+      if (callerTicket.callMode === "all") {
+        if (callerTicket.gender === "男") {
           query = collection.where("callMode", "in", ["all, wantMen"]);
         } else {
           query = collection.where("callMode", "in", ["all", "wantWomen"]);
         }
-      } else if (ticket.callMode === "wantMen") {
-        if (ticket.gender === "男") {
+      } else if (callerTicket.callMode === "wantMen") {
+        if (callerTicket.gender === "男") {
           query = collection
               .where("gender", "==", "男")
               .where("callMode", "in", ["all", "wantMen"]);
@@ -42,7 +32,7 @@ export const match = functions
               .where("callMode", "in", ["all", "wantWomen"]);
         }
       } else {
-        if (ticket.gender === "男") {
+        if (callerTicket.gender === "男") {
           query = collection
               .where("gender", "==", "女")
               .where("callMode", "in", ["all", "wantMen"]);
@@ -53,15 +43,73 @@ export const match = functions
         }
       }
       // 自分を除外
-      query = query.where("createdAt", "!=", ticket.createdAt);
+      query = query.where("createdAt", "!=", callerTicket.createdAt);
       // 最新順に並び替え
-      query = query.orderBy("createdAt", "desc");
+      query = query.orderBy("createdAt", "asc");
       // 1件に制限
-      // query = query.limit(1);
+      query = query.limit(1);
+
       // データ取得
       const result = await query.get();
-      functions.logger.info(result.size);
-      result.docs.map((snapshot) => {
-        functions.logger.info(snapshot.data() as Ticket);
+
+      // キャスト & 配列から取り出す
+      const calleeTicket = result.docs.map((snapshot) => {
+        const ticket = snapshot.data() as Ticket;
+        functions.logger.info(ticket);
+        return snapshot.data() as Ticket;
+      })[0];
+
+      // callUserStateRef
+      const callerUserStateRef = db
+          .collection("callUserState")
+          .doc(callerTicket.uid);
+      const calleeUserStateRef = db
+          .collection("callUserState")
+          .doc(calleeTicket.uid);
+
+      // callRoomとcallUserStateが残っているか確認
+      const isRoomResidue =
+      (
+        await db
+            .collection("callRoom")
+            .where("users", "array-contains-any", [
+              callerTicket.uid,
+              calleeTicket.uid,
+            ])
+            .get()
+      ).size != 0;
+      const isCallerResidue = (await callerUserStateRef.get()).exists;
+      const isCalleeResidue = (await calleeUserStateRef.get()).exists;
+      // 残留していたら失敗
+      if (isRoomResidue || isCallerResidue || isCalleeResidue) return;
+
+      // callUserState & callRoom書き込み
+      const callRoomRef = db.collection("callRoom").doc();
+      const callerUserState: CallUserState = {
+        uid: callerTicket.uid,
+        ticketId: callerTicket.ticketId,
+        callRoomId: callRoomRef.id,
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      };
+      const calleeUserState: CallUserState = {
+        uid: calleeTicket.uid,
+        ticketId: calleeTicket.ticketId,
+        callRoomId: callRoomRef.id,
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      };
+      const callRoom: CallRoom = {
+        callRoomId: callRoomRef.id,
+        users: [callerTicket.uid, calleeTicket.uid],
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      };
+      // transactionじゃなくてもいい？
+      await db.runTransaction(async (t) => {
+        await t.getAll(callerUserStateRef, calleeUserStateRef);
+        t.create(callerUserStateRef, callerUserState);
+        t.create(calleeUserStateRef, calleeUserState);
       });
+      await callRoomRef.create(callRoom);
     });
