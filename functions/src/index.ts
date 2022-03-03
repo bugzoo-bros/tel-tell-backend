@@ -1,6 +1,27 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {CallRoom, CallUserState, Ticket, User, UserPublic} from "./type";
+import {RtcTokenBuilder, RtcRole} from "agora-access-token";
+
+exports.generateToken = functions
+    .region("asia-northeast2")
+    .https.onCall((data) => {
+      const appID = functions.config().agora.id;
+      const appCertificate = functions.config().agora.cert;
+      const role = RtcRole.PUBLISHER;
+      const expirationTimeInSeconds = 3600; // 1時間
+      const currentTimestamp = Math.floor(Date.now() / 1000);
+      const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+      const token = RtcTokenBuilder.buildTokenWithAccount(
+          appID,
+          appCertificate,
+          data["channelName"],
+          data["account"],
+          role,
+          privilegeExpiredTs
+      );
+      return token;
+    });
 
 export const match = functions
     .region("asia-northeast2")
