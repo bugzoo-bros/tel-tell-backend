@@ -16,7 +16,7 @@ export const matchCallUser = functions
       let query: FirebaseFirestore.Query;
       if (callerTicket.callMode === "all") {
         if (callerTicket.gender === "男") {
-          query = collection.where("callMode", "in", ["all, wantMen"]);
+          query = collection.where("callMode", "in", ["all", "wantMen"]);
         } else {
           query = collection.where("callMode", "in", ["all", "wantWomen"]);
         }
