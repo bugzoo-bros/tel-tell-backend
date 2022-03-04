@@ -40,5 +40,14 @@ export type CallRoom = {
   updatedAt: FirebaseFirestore.Timestamp;
 };
 
+export type BlockUser = {
+  uid: string;
+  reason: string[];
+  source: boolean;
+  destination: boolean;
+  createdAt: FirebaseFirestore.Timestamp;
+  updatedAt: FirebaseFirestore.Timestamp;
+}
+
 type CallMode = "all" | "wantMen" | "wantWomen";
 type Gender = "男" | "女";
