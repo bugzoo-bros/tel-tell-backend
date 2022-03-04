@@ -67,6 +67,15 @@ export const matchCallUser = functions
         return snapshot.data() as Ticket;
       })[0];
 
+      // ブロック判定
+      const blockUserDoc = await db
+          .collection("user")
+          .doc(callerTicket.uid)
+          .collection("blockUser")
+          .doc(calleeTicket.uid)
+          .get();
+      if (blockUserDoc.exists) return;
+
       // チケットを削除
       const ticketRef = db.collection("ticket");
       await ticketRef.doc(callerTicket.ticketId).delete();

@@ -4,7 +4,7 @@ import {BlockUser} from "./type";
 
 export const createBlockeeUser = functions
     .region("asia-northeast2")
-    .firestore.document("user/{blockerUid}/block/{blockeeUid}")
+    .firestore.document("user/{blockerUid}/blockUser/{blockeeUid}")
     .onCreate(async (snapshot, context) => {
       const app = admin.initializeApp(undefined, context.eventId);
       const db = app.firestore();
@@ -19,6 +19,6 @@ export const createBlockeeUser = functions
       } as BlockUser;
       await db.collection("user")
           .doc(blockeeUser.uid)
-          .collection("block")
+          .collection("blockUser")
           .doc(context.params.blockerUid).create(blockerUser);
     });
